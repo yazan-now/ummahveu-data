@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "last_updated": "2026-05-13T23:21:44Z",
+  "mosques": [
+    {
+      "id": "lmm",
+      "name": "London Muslim Mosque",
+      "short_name": "LMM",
+      "address": "151 Oxford St W, London, ON N6H 1S1",
+      "lat": 42.9849,
+      "lng": -81.2453,
+      "phone": "+1-519-439-9451",
+      "logo_url": null,
+      "data_source": "masjidbox",
+      "source_url": "https://masjidbox.com/prayer-times/london-muslim-mosque-1726080054566",
+      "source_id": null,
+      "jamaat_times": {
+        "fajr": "06:15",
+        "dhuhr": "13:45",
+        "asr": "17:15",
+        "maghrib": "19:36",
+        "isha": "21:00"
+      },
+      "jummah_times": [
+        "12:00"
+      ],
+      "khateeb": null,
+      "last_verified": "2026-05-13T23:21:44Z"
+    },
+    {
+      "id": "mac_hyde_park",
+      "name": "MAC Hyde Park Masjid",
+      "short_name": "MAC Hyde Park",
+      "address": "1175 Hyde Park Rd, Unit 9, London, ON",
+      "lat": 43.0226,
+      "lng": -81.334,
+      "phone": "+1-519-474-2588",
+      "logo_url": null,
+      "data_source": "masjidbox",
+      "source_url": "https://masjidbox.com/prayer-times/mac-london",
+      "source_id": null,
+      "jamaat_times": {
+        "fajr": "04:58",
+        "dhuhr": "14:00",
+        "asr": "17:45",
+        "maghrib": "20:48",
+        "isha": "22:19"
+      },
+      "jummah_times": [
+        "12:30"
+      ],
+      "khateeb": null,
+      "last_verified": "2026-05-13T23:21:44Z"
+    },
+    {
+      "id": "muslim_wellness",
+      "name": "Muslim Wellness Network",
+      "short_name": "Muslim Wellness",
+      "address": "990 Gainsborough Rd, London, ON N6H 5L4",
+      "lat": 43.0008,
+      "lng": -81.3221,
+      "phone": "+1-519-914-3377",
+      "logo_url": null,
+      "data_source": "masjidbox",
+      "source_url": "https://masjidbox.com/prayer-times/muslim-wellness",
+      "source_id": null,
+      "jamaat_times": {
+        "fajr": "05:00",
+        "dhuhr": "13:45",
+        "asr": "17:45",
+        "maghrib": "20:48",
+        "isha": "22:09"
+      },
+      "jummah_times": [
+        "15:30"
+      ],
+      "khateeb": null,
+      "last_verified": "2026-05-13T23:21:44Z"
+    }
+  ]
+}
