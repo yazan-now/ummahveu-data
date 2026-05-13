@@ -7,7 +7,7 @@ require "time"
 
 ROOT = File.expand_path("..", __dir__)
 OUTPUT_PATH = File.join(ROOT, "london-masjids.json")
-USER_AGENT = "UmmahVeuDataBot/1.0 (+https://github.com/yazanali/ummahveu-data)"
+USER_AGENT = "UmmahVeuDataBot/1.0 (+https://github.com/yazan-now/ummahveu-data)"
 PRAYER_TITLES = {
   "Fajr" => "fajr",
   "Dhuhr" => "dhuhr",
