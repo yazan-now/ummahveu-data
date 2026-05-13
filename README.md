@@ -12,7 +12,7 @@ london-masjids.json
 Expected CDN URL:
 
 ```text
-https://cdn.jsdelivr.net/gh/yazanali/ummahveu-data@main/london-masjids.json
+https://cdn.jsdelivr.net/gh/yazan-now/ummahveu-data@main/london-masjids.json
 ```
 
 ## Source Policy
