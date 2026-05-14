@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "last_updated": "2026-05-13T23:21:44Z",
+  "last_updated": "2026-05-14T00:25:02Z",
   "mosques": [
     {
       "id": "lmm",
@@ -25,7 +25,33 @@
         "12:00"
       ],
       "khateeb": null,
-      "last_verified": "2026-05-13T23:21:44Z"
+      "last_verified": "2026-05-14T00:25:02Z"
+    },
+    {
+      "id": "mac_westmount",
+      "name": "MAC Westmount Centre",
+      "short_name": "MAC Westmount",
+      "address": "312 Commissioners Rd W Unit 5, London, ON N6J 1Y3",
+      "lat": 42.9554,
+      "lng": -81.2766,
+      "phone": "+1-519-936-2304",
+      "logo_url": null,
+      "data_source": "official_website",
+      "source_url": "https://centres.macnet.ca/westmount/",
+      "source_id": null,
+      "jamaat_times": {
+        "fajr": "04:58",
+        "dhuhr": "14:00",
+        "asr": "17:45",
+        "maghrib": "20:48",
+        "isha": "22:19"
+      },
+      "jummah_times": [
+        "12:15",
+        "13:30"
+      ],
+      "khateeb": null,
+      "last_verified": "2026-05-14T00:25:02Z"
     },
     {
       "id": "mac_hyde_park",
@@ -50,7 +76,7 @@
         "12:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-05-13T23:21:44Z"
+      "last_verified": "2026-05-14T00:25:02Z"
     },
     {
       "id": "muslim_wellness",
@@ -75,7 +101,7 @@
         "15:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-05-13T23:21:44Z"
+      "last_verified": "2026-05-14T00:25:02Z"
     }
   ]
 }

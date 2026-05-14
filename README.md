@@ -19,15 +19,18 @@ https://cdn.jsdelivr.net/gh/yazan-now/ummahveu-data@main/london-masjids.json
 
 - Do not estimate iqamah or Jummah times.
 - The updater reads the displayed `Iqamah` / `Jumuah` values from each mosque's
-  public Masjidbox page.
+  approved public source page.
+- MAC Westmount uses the official MAC Westmount page at
+  `https://centres.macnet.ca/westmount/`.
+- London Muslim Mosque, MAC Hyde Park, and Muslim Wellness use their public
+  Masjidbox pages.
 - If a source page cannot be fetched or parsed, the updater fails instead of
   publishing guessed times.
-- MAC Westmount is intentionally not included here; the iOS app fetches it live
-  from Prayers Connect.
 
 ## Mosques In This Feed
 
 - London Muslim Mosque
+- MAC Westmount Centre
 - MAC Hyde Park Masjid
 - Muslim Wellness Network
 
