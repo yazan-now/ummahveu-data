@@ -16,6 +16,7 @@ PRAYER_TITLES = {
   "Maghrib" => "maghrib",
   "Isha" => "isha"
 }.freeze
+REQUIRED_PRAYER_KEYS = PRAYER_TITLES.values.uniq.freeze
 
 MOSQUES = [
   {
@@ -113,6 +114,17 @@ def title_from(item_html)
   text_from_html(raw)
 end
 
+def jumuah_title?(title)
+  normalized = title.downcase.gsub(/[^a-z]/, "")
+  normalized.start_with?("jumuah", "jummah")
+end
+
+def ordered_prayer_times(jamaat)
+  REQUIRED_PRAYER_KEYS.each_with_object({}) do |key, ordered|
+    ordered[key] = jamaat.fetch(key)
+  end
+end
+
 def prayer_items_from(html)
   html.scan(
     /<div class="styles__Item-sc-1h272ay-1\b[^"]*"[^>]*>(.*?)(?=<div class="styles__Item-sc-1h272ay-1\b|<div class="styles__Wrapper-sc-fn1c8y-0\b)/m
@@ -121,22 +133,29 @@ end
 
 def iqamah_times_from(html)
   jamaat = {}
+  jumuah_dhuhr_time = nil
 
   prayer_items_from(html).each do |item|
     title = title_from(item)
     key = PRAYER_TITLES[title]
-    next unless key
-
     times = time_values_from(item)
-    raise "#{title} is missing iqamah time." if times.length < 2
+    if key
+      raise "#{title} is missing iqamah time." if times.length < 2
 
-    jamaat[key] = times[1]
+      jamaat[key] = times[1]
+    elsif jumuah_title?(title)
+      raise "#{title} is missing iqamah time." if times.empty?
+
+      jumuah_dhuhr_time ||= times[1] || times[0]
+    end
   end
 
-  missing = PRAYER_TITLES.values - jamaat.keys
+  jamaat["dhuhr"] ||= jumuah_dhuhr_time
+
+  missing = REQUIRED_PRAYER_KEYS - jamaat.keys
   raise "Missing iqamah values: #{missing.join(", ")}" unless missing.empty?
 
-  jamaat
+  ordered_prayer_times(jamaat)
 end
 
 def jummah_times_from(html)
@@ -158,10 +177,10 @@ def mac_official_iqamah_times_from(html)
     jamaat[key] = time_text_to_24h(CGI.unescapeHTML(time))
   end
 
-  missing = PRAYER_TITLES.values.uniq - jamaat.keys
+  missing = REQUIRED_PRAYER_KEYS - jamaat.keys
   raise "Missing MAC official iqamah values: #{missing.join(", ")}" unless missing.empty?
 
-  jamaat
+  ordered_prayer_times(jamaat)
 end
 
 def mac_official_jummah_times_from(html)
@@ -191,7 +210,7 @@ def validate_record!(record)
     raise "#{record["id"]} has blank #{key}." if value.respond_to?(:empty?) && value.empty?
   end
 
-  PRAYER_TITLES.values.each do |key|
+  REQUIRED_PRAYER_KEYS.each do |key|
     validate_time!(record.fetch("jamaat_times").fetch(key), "#{record["id"]}.#{key}")
   end
 
@@ -201,8 +220,9 @@ def validate_record!(record)
 end
 
 def build_record(config, verified_at)
-  html = fetch_html(config.fetch(:source_url))
+  source_url = config.fetch(:source_url)
   source_type = config.fetch(:source_type)
+  html = fetch_html(source_url)
   jamaat_times = if source_type == "mac_official"
                    mac_official_iqamah_times_from(html)
                  else
@@ -223,7 +243,7 @@ def build_record(config, verified_at)
     "phone" => config.fetch(:phone),
     "logo_url" => nil,
     "data_source" => source_type == "mac_official" ? "official_website" : "masjidbox",
-    "source_url" => config.fetch(:source_url),
+    "source_url" => source_url,
     "source_id" => nil,
     "jamaat_times" => jamaat_times,
     "jummah_times" => jummah_times,
@@ -234,17 +254,27 @@ def build_record(config, verified_at)
 
   validate_record!(record)
   record
+rescue StandardError => e
+  raise "Failed to build #{config.fetch(:id)} from #{source_url}: #{e.message}"
 end
 
-verified_at = Time.now.utc.iso8601
-data = {
-  "version" => 1,
-  "last_updated" => verified_at,
-  "mosques" => MOSQUES.map { |config| build_record(config, verified_at) }
-}
+def generate_data(verified_at = Time.now.utc.iso8601)
+  {
+    "version" => 1,
+    "last_updated" => verified_at,
+    "mosques" => MOSQUES.map { |config| build_record(config, verified_at) }
+  }
+end
 
-File.write(OUTPUT_PATH, "#{JSON.pretty_generate(data)}\n")
-puts "Wrote #{OUTPUT_PATH}"
-data.fetch("mosques").each do |mosque|
-  puts "#{mosque.fetch("short_name")}: #{mosque.fetch("jamaat_times").map { |k, v| "#{k}=#{v}" }.join(", ")}; Jummah #{mosque.fetch("jummah_times").join(", ")}"
+def write_data(data)
+  File.write(OUTPUT_PATH, "#{JSON.pretty_generate(data)}\n")
+  puts "Wrote #{OUTPUT_PATH}"
+  data.fetch("mosques").each do |mosque|
+    times = mosque.fetch("jamaat_times").map { |key, value| "#{key}=#{value}" }.join(", ")
+    puts "#{mosque.fetch("short_name")}: #{times}; Jummah #{mosque.fetch("jummah_times").join(", ")}"
+  end
+end
+
+if $PROGRAM_NAME == __FILE__
+  write_data(generate_data)
 end

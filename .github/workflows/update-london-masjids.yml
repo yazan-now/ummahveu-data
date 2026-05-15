@@ -20,6 +20,9 @@ jobs:
         with:
           ruby-version: "3.3"
 
+      - name: Run updater regression tests
+        run: ruby -Itest test/update_london_masjids_test.rb
+
       - name: Generate London masjid JSON
         run: ruby scripts/update_london_masjids.rb
 
