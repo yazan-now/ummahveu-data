@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "last_updated": "2026-05-15T12:35:19Z",
+  "last_updated": "2026-05-16T08:22:57Z",
   "mosques": [
     {
       "id": "lmm",
@@ -16,7 +16,7 @@
       "source_id": null,
       "jamaat_times": {
         "fajr": "06:15",
-        "dhuhr": "12:00",
+        "dhuhr": "13:45",
         "asr": "17:15",
         "maghrib": "19:36",
         "isha": "21:00"
@@ -25,7 +25,7 @@
         "12:00"
       ],
       "khateeb": null,
-      "last_verified": "2026-05-15T12:35:19Z"
+      "last_verified": "2026-05-16T08:22:57Z"
     },
     {
       "id": "mac_westmount",
@@ -40,18 +40,18 @@
       "source_url": "https://centres.macnet.ca/westmount/",
       "source_id": null,
       "jamaat_times": {
-        "fajr": "04:54",
+        "fajr": "04:53",
         "dhuhr": "14:00",
         "asr": "17:45",
-        "maghrib": "20:50",
-        "isha": "22:21"
+        "maghrib": "20:51",
+        "isha": "22:22"
       },
       "jummah_times": [
         "12:15",
         "13:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-05-15T12:35:19Z"
+      "last_verified": "2026-05-16T08:22:57Z"
     },
     {
       "id": "mac_hyde_park",
@@ -66,17 +66,17 @@
       "source_url": "https://masjidbox.com/prayer-times/mac-london",
       "source_id": null,
       "jamaat_times": {
-        "fajr": "04:54",
-        "dhuhr": "12:30",
+        "fajr": "04:53",
+        "dhuhr": "14:00",
         "asr": "17:45",
-        "maghrib": "20:50",
-        "isha": "22:21"
+        "maghrib": "20:51",
+        "isha": "22:22"
       },
       "jummah_times": [
         "12:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-05-15T12:35:19Z"
+      "last_verified": "2026-05-16T08:22:57Z"
     },
     {
       "id": "muslim_wellness",
@@ -92,16 +92,16 @@
       "source_id": null,
       "jamaat_times": {
         "fajr": "05:00",
-        "dhuhr": "15:30",
+        "dhuhr": "13:45",
         "asr": "17:45",
-        "maghrib": "20:50",
-        "isha": "22:11"
+        "maghrib": "20:51",
+        "isha": "22:12"
       },
       "jummah_times": [
         "15:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-05-15T12:35:19Z"
+      "last_verified": "2026-05-16T08:22:57Z"
     }
   ]
 }
