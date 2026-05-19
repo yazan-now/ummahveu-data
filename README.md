@@ -20,10 +20,14 @@ https://cdn.jsdelivr.net/gh/yazan-now/ummahveu-data@main/london-masjids.json
 - Do not estimate iqamah or Jummah times.
 - The updater reads the displayed `Iqamah` / `Jumuah` values from each mosque's
   approved public source page.
+- London Muslim Mosque uses the official London Mosque monthly schedule at
+  `https://www.londonmosque.ca/page/pray_time/monthly/YYYY-MM` and Friday-prayer page at
+  `https://www.londonmosque.ca/friday-prayers`.
+- The LMM record includes a `jamaat_schedule` map for the whole official month,
+  while `jamaat_times` remains the current-day row for older app builds.
 - MAC Westmount uses the official MAC Westmount page at
   `https://centres.macnet.ca/westmount/`.
-- London Muslim Mosque, MAC Hyde Park, and Muslim Wellness use their public
-  Masjidbox pages.
+- MAC Hyde Park and Muslim Wellness use their public Masjidbox pages.
 - If a source page cannot be fetched or parsed, the updater fails instead of
   publishing guessed times.
 

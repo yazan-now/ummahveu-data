@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require "cgi"
+require "date"
 require "json"
 require "open-uri"
 require "time"
@@ -8,6 +9,9 @@ require "time"
 ROOT = File.expand_path("..", __dir__)
 OUTPUT_PATH = File.join(ROOT, "london-masjids.json")
 USER_AGENT = "UmmahVeuDataBot/1.0 (+https://github.com/yazan-now/ummahveu-data)"
+LONDON_TIME_ZONE = "America/Toronto"
+LONDON_MOSQUE_MONTHLY_BASE_URL = "https://www.londonmosque.ca/page/pray_time/monthly"
+LONDON_MOSQUE_FRIDAY_URL = "https://www.londonmosque.ca/friday-prayers"
 PRAYER_TITLES = {
   "Fajr" => "fajr",
   "Dhuhr" => "dhuhr",
@@ -27,8 +31,9 @@ MOSQUES = [
     lat: 42.9849,
     lng: -81.2453,
     phone: "+1-519-439-9451",
-    source_url: "https://masjidbox.com/prayer-times/london-muslim-mosque-1726080054566",
-    source_type: "masjidbox"
+    source_url: LONDON_MOSQUE_MONTHLY_BASE_URL,
+    jummah_source_url: LONDON_MOSQUE_FRIDAY_URL,
+    source_type: "lmm_official"
   },
   {
     id: "mac_westmount",
@@ -67,6 +72,18 @@ MOSQUES = [
 
 def fetch_html(url)
   URI.open(url, "User-Agent" => USER_AGENT, read_timeout: 30).read
+end
+
+def london_today
+  original_tz = ENV["TZ"]
+  ENV["TZ"] = LONDON_TIME_ZONE
+  Date.today
+ensure
+  ENV["TZ"] = original_tz
+end
+
+def london_mosque_monthly_url(date)
+  "#{LONDON_MOSQUE_MONTHLY_BASE_URL}/#{date.strftime("%Y-%m")}"
 end
 
 def text_from_html(fragment)
@@ -195,6 +212,67 @@ def mac_official_jummah_times_from(html)
   times
 end
 
+def london_mosque_official_iqamah_times_from(html, date)
+  schedule = london_mosque_official_monthly_schedule_from(html, date)
+  schedule.fetch(date.iso8601) do
+    raise "Could not find London Mosque row for #{date.iso8601}."
+  end
+end
+
+def london_mosque_official_monthly_schedule_from(html, date)
+  schedule = {}
+  rows = html.scan(/<tr[^>]*>(.*?)<\/tr>/m).map(&:first)
+  rows.each do |row|
+    cells = row.scan(/<td\b[^>]*>(.*?)<\/td>/m).map(&:first)
+    next if cells.empty?
+
+    day = london_mosque_day_from_cell(cells.first)
+    next unless day
+    raise "London Mosque row for day #{day} has unexpected column count." if cells.length < 7
+
+    date_key = Date.new(date.year, date.month, day).iso8601
+    schedule[date_key] = ordered_prayer_times(
+      "fajr" => london_mosque_second_time_from_cell(cells[1], "Fajr"),
+      "dhuhr" => london_mosque_second_time_from_cell(cells[3], "Zuhr"),
+      "asr" => london_mosque_second_time_from_cell(cells[4], "Asr"),
+      "maghrib" => london_mosque_second_time_from_cell(cells[5], "Maghrib"),
+      "isha" => london_mosque_second_time_from_cell(cells[6], "Isha")
+    )
+  end
+
+  raise "London Mosque monthly schedule is empty." if schedule.empty?
+
+  expected_dates = (1..Date.new(date.year, date.month, -1).day).map do |day|
+    Date.new(date.year, date.month, day).iso8601
+  end
+  missing = expected_dates - schedule.keys
+  raise "London Mosque monthly schedule is missing date(s): #{missing.join(", ")}" unless missing.empty?
+
+  schedule.sort.to_h
+end
+
+def london_mosque_day_from_cell(cell_html)
+  text_from_html(cell_html)[/\b(\d{1,2})\b/, 1]&.to_i
+end
+
+def london_mosque_second_time_from_cell(cell_html, label)
+  times = text_from_html(cell_html).scan(/\d{1,2}:\d{2}\s*(?:AM|PM)/i)
+  raise "London Mosque #{label} cell is missing iqamah time." if times.length < 2
+
+  time_text_to_24h(times[1])
+end
+
+def london_mosque_jummah_times_from(html)
+  times = text_from_html(html)
+          .scan(/(?:First|Second)\s+Khutbah\s+(\d{1,2}:\d{2}\s*(?:AM|PM))/i)
+          .flatten
+          .map { |time| time_text_to_24h(time) }
+          .uniq
+  raise "Could not find London Mosque Jummah times." if times.empty?
+
+  times
+end
+
 def validate_time!(value, label)
   match = value.match(/\A\d{2}:\d{2}\z/)
   raise "#{label} is not HH:mm: #{value.inspect}" unless match
@@ -217,22 +295,48 @@ def validate_record!(record)
   record.fetch("jummah_times").each do |time|
     validate_time!(time, "#{record["id"]}.jummah")
   end
+
+  return unless record["jamaat_schedule"]
+
+  schedule = record.fetch("jamaat_schedule")
+  raise "#{record["id"]}.jamaat_schedule must be an object." unless schedule.is_a?(Hash)
+
+  schedule.each do |date_key, times|
+    Date.iso8601(date_key)
+    raise "#{record["id"]}.jamaat_schedule.#{date_key} must be an object." unless times.is_a?(Hash)
+
+    REQUIRED_PRAYER_KEYS.each do |key|
+      validate_time!(times.fetch(key), "#{record["id"]}.jamaat_schedule.#{date_key}.#{key}")
+    end
+  rescue Date::Error
+    raise "#{record["id"]}.jamaat_schedule has invalid date key #{date_key.inspect}."
+  end
 end
 
-def build_record(config, verified_at)
-  source_url = config.fetch(:source_url)
+def build_record(config, verified_at, date: london_today)
   source_type = config.fetch(:source_type)
+  source_url = source_type == "lmm_official" ? london_mosque_monthly_url(date) : config.fetch(:source_url)
   html = fetch_html(source_url)
-  jamaat_times = if source_type == "mac_official"
-                   mac_official_iqamah_times_from(html)
-                 else
-                   iqamah_times_from(html)
-                 end
-  jummah_times = if source_type == "mac_official"
-                   mac_official_jummah_times_from(html)
-                 else
-                   jummah_times_from(html)
-                 end
+  jamaat_schedule = nil
+  jamaat_times =
+    case source_type
+    when "lmm_official"
+      jamaat_schedule = london_mosque_official_monthly_schedule_from(html, date)
+      jamaat_schedule.fetch(date.iso8601)
+    when "mac_official"
+      mac_official_iqamah_times_from(html)
+    else
+      iqamah_times_from(html)
+    end
+  jummah_times =
+    case source_type
+    when "lmm_official"
+      london_mosque_jummah_times_from(fetch_html(config.fetch(:jummah_source_url)))
+    when "mac_official"
+      mac_official_jummah_times_from(html)
+    else
+      jummah_times_from(html)
+    end
   record = {
     "id" => config.fetch(:id),
     "name" => config.fetch(:name),
@@ -242,7 +346,7 @@ def build_record(config, verified_at)
     "lng" => config.fetch(:lng),
     "phone" => config.fetch(:phone),
     "logo_url" => nil,
-    "data_source" => source_type == "mac_official" ? "official_website" : "masjidbox",
+    "data_source" => source_type == "masjidbox" ? "masjidbox" : "official_website",
     "source_url" => source_url,
     "source_id" => nil,
     "jamaat_times" => jamaat_times,
@@ -250,6 +354,10 @@ def build_record(config, verified_at)
     "khateeb" => nil,
     "last_verified" => verified_at
   }
+  if jamaat_schedule
+    record["schedule_month"] = date.strftime("%Y-%m")
+    record["jamaat_schedule"] = jamaat_schedule
+  end
   raise "#{record["id"]} has no Jummah iqamah times." if record["jummah_times"].empty?
 
   validate_record!(record)
@@ -258,11 +366,11 @@ rescue StandardError => e
   raise "Failed to build #{config.fetch(:id)} from #{source_url}: #{e.message}"
 end
 
-def generate_data(verified_at = Time.now.utc.iso8601)
+def generate_data(verified_at = Time.now.utc.iso8601, date: london_today)
   {
-    "version" => 1,
+    "version" => 2,
     "last_updated" => verified_at,
-    "mosques" => MOSQUES.map { |config| build_record(config, verified_at) }
+    "mosques" => MOSQUES.map { |config| build_record(config, verified_at, date: date) }
   }
 end
 
