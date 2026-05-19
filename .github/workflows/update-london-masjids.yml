@@ -27,7 +27,7 @@ jobs:
         run: ruby scripts/update_london_masjids.rb
 
       - name: Validate JSON shape
-        run: ruby -rjson -e 'data = JSON.parse(File.read("london-masjids.json")); abort("bad version") unless data["version"] == 1; abort("bad count") unless data["mosques"].length == 4'
+        run: ruby -rjson -e 'data = JSON.parse(File.read("london-masjids.json")); abort("bad version") unless data["version"] == 2; abort("bad count") unless data["mosques"].length == 4; lmm = data["mosques"].find { |m| m["id"] == "lmm" }; abort("missing lmm schedule") unless lmm && lmm["jamaat_schedule"].is_a?(Hash) && !lmm["jamaat_schedule"].empty?'
 
       - name: Commit updated feed
         run: |
