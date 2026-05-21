@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-05-20T09:59:20Z",
+  "last_updated": "2026-05-21T10:09:22Z",
   "mosques": [
     {
       "id": "lmm",
@@ -18,15 +18,15 @@
         "fajr": "05:00",
         "dhuhr": "13:50",
         "asr": "17:45",
-        "maghrib": "20:55",
-        "isha": "22:26"
+        "maghrib": "20:56",
+        "isha": "22:27"
       },
       "jummah_times": [
         "12:00",
         "13:15"
       ],
       "khateeb": null,
-      "last_verified": "2026-05-20T09:59:20Z",
+      "last_verified": "2026-05-21T10:09:22Z",
       "schedule_month": "2026-05",
       "jamaat_schedule": {
         "2026-05-01": {
@@ -261,10 +261,10 @@
       "source_url": "https://centres.macnet.ca/westmount/",
       "source_id": null,
       "jamaat_times": {
-        "fajr": "04:47",
+        "fajr": "04:46",
         "dhuhr": "14:00",
         "asr": "17:45",
-        "maghrib": "20:55",
+        "maghrib": "20:56",
         "isha": "22:26"
       },
       "jummah_times": [
@@ -272,7 +272,7 @@
         "13:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-05-20T09:59:20Z"
+      "last_verified": "2026-05-21T10:09:22Z"
     },
     {
       "id": "mac_hyde_park",
@@ -287,17 +287,17 @@
       "source_url": "https://masjidbox.com/prayer-times/mac-london",
       "source_id": null,
       "jamaat_times": {
-        "fajr": "04:47",
+        "fajr": "04:46",
         "dhuhr": "14:00",
         "asr": "17:45",
-        "maghrib": "20:55",
+        "maghrib": "20:56",
         "isha": "22:26"
       },
       "jummah_times": [
         "12:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-05-20T09:59:20Z"
+      "last_verified": "2026-05-21T10:09:22Z"
     },
     {
       "id": "muslim_wellness",
@@ -315,14 +315,14 @@
         "fajr": "05:00",
         "dhuhr": "13:45",
         "asr": "17:45",
-        "maghrib": "20:55",
-        "isha": "22:16"
+        "maghrib": "20:56",
+        "isha": "22:17"
       },
       "jummah_times": [
         "15:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-05-20T09:59:20Z"
+      "last_verified": "2026-05-21T10:09:22Z"
     }
   ]
 }
