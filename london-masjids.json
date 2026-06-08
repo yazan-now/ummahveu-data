@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-06-07T09:45:38Z",
+  "last_updated": "2026-06-08T11:24:50Z",
   "mosques": [
     {
       "id": "lmm",
@@ -18,7 +18,7 @@
         "fajr": "05:00",
         "dhuhr": "13:50",
         "asr": "18:00",
-        "maghrib": "21:10",
+        "maghrib": "21:11",
         "isha": "22:42"
       },
       "jummah_times": [
@@ -26,7 +26,7 @@
         "13:15"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-07T09:45:38Z",
+      "last_verified": "2026-06-08T11:24:50Z",
       "schedule_month": "2026-06",
       "jamaat_schedule": {
         "2026-06-01": {
@@ -254,10 +254,10 @@
       "source_url": "https://centres.macnet.ca/westmount/",
       "source_id": null,
       "jamaat_times": {
-        "fajr": "04:30",
+        "fajr": "04:29",
         "dhuhr": "14:00",
         "asr": "17:45",
-        "maghrib": "21:10",
+        "maghrib": "21:11",
         "isha": "22:42"
       },
       "jummah_times": [
@@ -265,7 +265,7 @@
         "13:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-07T09:45:38Z"
+      "last_verified": "2026-06-08T11:24:50Z"
     },
     {
       "id": "mac_hyde_park",
@@ -280,17 +280,17 @@
       "source_url": "https://masjidbox.com/prayer-times/mac-london",
       "source_id": null,
       "jamaat_times": {
-        "fajr": "04:30",
+        "fajr": "04:29",
         "dhuhr": "14:00",
         "asr": "17:45",
-        "maghrib": "21:10",
+        "maghrib": "21:11",
         "isha": "22:42"
       },
       "jummah_times": [
         "12:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-07T09:45:38Z"
+      "last_verified": "2026-06-08T11:24:50Z"
     },
     {
       "id": "muslim_wellness",
@@ -308,14 +308,14 @@
         "fajr": "05:00",
         "dhuhr": "13:45",
         "asr": "17:45",
-        "maghrib": "21:10",
+        "maghrib": "21:11",
         "isha": "22:32"
       },
       "jummah_times": [
         "15:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-07T09:45:38Z"
+      "last_verified": "2026-06-08T11:24:50Z"
     }
   ]
 }
