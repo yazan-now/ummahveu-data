@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-06-15T12:48:00Z",
+  "last_updated": "2026-06-16T11:40:44Z",
   "mosques": [
     {
       "id": "lmm",
@@ -26,7 +26,7 @@
         "13:15"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-15T12:48:00Z",
+      "last_verified": "2026-06-16T11:40:44Z",
       "schedule_month": "2026-06",
       "jamaat_schedule": {
         "2026-06-01": {
@@ -257,15 +257,15 @@
         "fajr": "05:00",
         "dhuhr": "14:00",
         "asr": "17:45",
-        "maghrib": "21:14",
-        "isha": "22:47"
+        "maghrib": "21:15",
+        "isha": "22:48"
       },
       "jummah_times": [
         "12:15",
         "13:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-15T12:48:00Z"
+      "last_verified": "2026-06-16T11:40:44Z"
     },
     {
       "id": "mac_hyde_park",
@@ -283,14 +283,14 @@
         "fajr": "04:27",
         "dhuhr": "14:00",
         "asr": "17:45",
-        "maghrib": "21:14",
-        "isha": "22:47"
+        "maghrib": "21:15",
+        "isha": "22:48"
       },
       "jummah_times": [
         "12:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-15T12:48:00Z"
+      "last_verified": "2026-06-16T11:40:44Z"
     },
     {
       "id": "muslim_wellness",
@@ -315,7 +315,7 @@
         "15:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-15T12:48:00Z"
+      "last_verified": "2026-06-16T11:40:44Z"
     }
   ]
 }
