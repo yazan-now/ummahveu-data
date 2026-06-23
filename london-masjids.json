@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-06-22T12:31:35Z",
+  "last_updated": "2026-06-23T10:09:17Z",
   "mosques": [
     {
       "id": "lmm",
@@ -26,7 +26,7 @@
         "13:15"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-22T12:31:35Z",
+      "last_verified": "2026-06-23T10:09:17Z",
       "schedule_month": "2026-06",
       "jamaat_schedule": {
         "2026-06-01": {
@@ -265,7 +265,7 @@
         "13:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-22T12:31:35Z"
+      "last_verified": "2026-06-23T10:09:17Z"
     },
     {
       "id": "mac_hyde_park",
@@ -290,7 +290,7 @@
         "12:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-22T12:31:35Z"
+      "last_verified": "2026-06-23T10:09:17Z"
     },
     {
       "id": "muslim_wellness",
@@ -315,7 +315,7 @@
         "15:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-06-22T12:31:35Z"
+      "last_verified": "2026-06-23T10:09:17Z"
     }
   ]
 }
