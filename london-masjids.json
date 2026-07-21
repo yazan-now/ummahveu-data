@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-07-20T09:40:50Z",
+  "last_updated": "2026-07-21T09:07:56Z",
   "mosques": [
     {
       "id": "lmm",
@@ -18,15 +18,15 @@
         "fajr": "05:00",
         "dhuhr": "13:50",
         "asr": "18:00",
-        "maghrib": "21:06",
-        "isha": "22:32"
+        "maghrib": "21:05",
+        "isha": "22:31"
       },
       "jummah_times": [
         "12:00",
         "13:15"
       ],
       "khateeb": null,
-      "last_verified": "2026-07-20T09:40:50Z",
+      "last_verified": "2026-07-21T09:07:56Z",
       "schedule_month": "2026-07",
       "jamaat_schedule": {
         "2026-07-01": {
@@ -264,15 +264,15 @@
         "fajr": "05:00",
         "dhuhr": "14:00",
         "asr": "17:45",
-        "maghrib": "21:07",
-        "isha": "22:34"
+        "maghrib": "21:06",
+        "isha": "22:32"
       },
       "jummah_times": [
         "12:15",
         "13:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-07-20T09:40:50Z"
+      "last_verified": "2026-07-21T09:07:56Z"
     },
     {
       "id": "mac_hyde_park",
@@ -287,17 +287,17 @@
       "source_url": "https://masjidbox.com/prayer-times/mac-london",
       "source_id": null,
       "jamaat_times": {
-        "fajr": "04:54",
+        "fajr": "04:56",
         "dhuhr": "14:00",
         "asr": "17:45",
-        "maghrib": "21:07",
-        "isha": "22:34"
+        "maghrib": "21:06",
+        "isha": "22:32"
       },
       "jummah_times": [
         "12:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-07-20T09:40:50Z"
+      "last_verified": "2026-07-21T09:07:56Z"
     },
     {
       "id": "muslim_wellness",
@@ -315,14 +315,14 @@
         "fajr": "05:00",
         "dhuhr": "13:45",
         "asr": "18:00",
-        "maghrib": "21:06",
-        "isha": "22:22"
+        "maghrib": "21:05",
+        "isha": "22:21"
       },
       "jummah_times": [
         "15:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-07-20T09:40:50Z"
+      "last_verified": "2026-07-21T09:07:56Z"
     }
   ]
 }
