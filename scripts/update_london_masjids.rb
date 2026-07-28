@@ -70,8 +70,62 @@ MOSQUES = [
   }
 ].freeze
 
+# A single flaky host used to abort the entire run: `read_timeout` does not
+# cover CONNECTION setup, so a Net::OpenTimeout on one mosque's site killed the
+# whole dataset (2026-07-28, centres.macnet.ca). Bound both phases and retry.
+FETCH_ATTEMPTS = 3
+
 def fetch_html(url)
-  URI.open(url, "User-Agent" => USER_AGENT, read_timeout: 30).read
+  attempt = 0
+  begin
+    attempt += 1
+    URI.open(url, "User-Agent" => USER_AGENT, open_timeout: 15, read_timeout: 30).read
+  rescue StandardError => e
+    raise if attempt >= FETCH_ATTEMPTS
+
+    warn "  retry #{attempt}/#{FETCH_ATTEMPTS - 1} for #{url}: #{e.class}: #{e.message}"
+    sleep(2 * attempt)
+    retry
+  end
+end
+
+# Last published dataset, keyed by mosque id, used to ride out a single site
+# being briefly unreachable.
+def previous_records
+  return {} unless File.exist?(OUTPUT_PATH)
+
+  JSON.parse(File.read(OUTPUT_PATH))
+      .fetch("mosques", [])
+      .each_with_object({}) { |mosque, acc| acc[mosque["id"]] = mosque }
+rescue StandardError => e
+  warn "Could not read previous #{OUTPUT_PATH}: #{e.message}"
+  {}
+end
+
+# Carry a mosque forward when its site is down.
+#
+# CRITICAL: `jamaat_times` is TODAY'S times. Reusing yesterday's would show the
+# wrong prayer time, which is worse than showing none — the iOS app treats a
+# missing value as "unavailable" and says so (jamaatTimes is optional and
+# LondonMasjidRemoteModels.swift:124 already prefers the date-keyed schedule).
+# So: if the stored monthly schedule covers today, today's times are still
+# genuinely correct and are re-derived. Otherwise they are dropped, and only
+# the stable fields (address, phone, Jummah) carry over.
+def stale_fallback(config, previous, date:)
+  prior = previous[config.fetch(:id)]
+  return nil unless prior
+
+  record = prior.dup
+  schedule = record["jamaat_schedule"]
+  today_key = date.iso8601
+  if schedule.is_a?(Hash) && schedule[today_key]
+    record["jamaat_times"] = schedule.fetch(today_key)
+    record["stale_source"] = false
+  else
+    record["jamaat_times"] = nil
+    record["stale_source"] = true
+  end
+  record
 end
 
 def london_today
@@ -367,10 +421,35 @@ rescue StandardError => e
 end
 
 def generate_data(verified_at = Time.now.utc.iso8601, date: london_today)
+  previous = previous_records
+  degraded = []
+
+  mosques = MOSQUES.map do |config|
+    build_record(config, verified_at, date: date)
+  rescue StandardError => e
+    warn "WARN #{config.fetch(:id)}: #{e.message}"
+    fallback = stale_fallback(config, previous, date: date)
+    raise "#{config.fetch(:id)} failed and there is no previous record to fall back on: #{e.message}" unless fallback
+
+    degraded << config.fetch(:id)
+    fallback
+  end
+
+  # Everything failing means the run itself is broken (network, a shared
+  # dependency), not one flaky site. Fail loudly and leave the published file
+  # alone rather than republishing an all-stale dataset as if it were fresh.
+  if degraded.size == MOSQUES.size
+    raise "Every mosque failed to refresh (#{degraded.join(", ")}); leaving #{OUTPUT_PATH} untouched."
+  end
+
+  unless degraded.empty?
+    warn "Published with #{degraded.size} degraded mosque(s): #{degraded.join(", ")}"
+  end
+
   {
     "version" => 2,
     "last_updated" => verified_at,
-    "mosques" => MOSQUES.map { |config| build_record(config, verified_at, date: date) }
+    "mosques" => mosques
   }
 end
 
@@ -378,8 +457,14 @@ def write_data(data)
   File.write(OUTPUT_PATH, "#{JSON.pretty_generate(data)}\n")
   puts "Wrote #{OUTPUT_PATH}"
   data.fetch("mosques").each do |mosque|
-    times = mosque.fetch("jamaat_times").map { |key, value| "#{key}=#{value}" }.join(", ")
-    puts "#{mosque.fetch("short_name")}: #{times}; Jummah #{mosque.fetch("jummah_times").join(", ")}"
+    # jamaat_times is nil for a mosque carried forward from the previous run
+    # whose site was unreachable and which has no monthly schedule covering
+    # today - see stale_fallback. Printing it must not crash the run, or the
+    # job still exits non-zero after successfully publishing.
+    jamaat = mosque["jamaat_times"]
+    times = jamaat ? jamaat.map { |key, value| "#{key}=#{value}" }.join(", ") : "unavailable (source down)"
+    jummah = Array(mosque["jummah_times"]).join(", ")
+    puts "#{mosque.fetch("short_name")}: #{times}; Jummah #{jummah}"
   end
 end
 
