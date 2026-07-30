@@ -4,10 +4,12 @@ require "cgi"
 require "date"
 require "json"
 require "open-uri"
+require "tempfile"
 require "time"
 
 ROOT = File.expand_path("..", __dir__)
 OUTPUT_PATH = File.join(ROOT, "london-masjids.json")
+MANUAL_OVERRIDES_PATH = File.join(ROOT, "manual-overrides.json")
 USER_AGENT = "UmmahVeuDataBot/1.0 (+https://github.com/yazan-now/ummahveu-data)"
 LONDON_TIME_ZONE = "America/Toronto"
 LONDON_MOSQUE_MONTHLY_BASE_URL = "https://www.londonmosque.ca/page/pray_time/monthly"
@@ -96,7 +98,12 @@ def previous_records
 
   JSON.parse(File.read(OUTPUT_PATH))
       .fetch("mosques", [])
-      .each_with_object({}) { |mosque, acc| acc[mosque["id"]] = mosque }
+      .each_with_object({}) do |mosque, records|
+        validate_fallback_record!(mosque)
+        records[mosque.fetch("id")] = mosque
+      rescue StandardError => e
+        warn "Ignoring invalid previous record #{mosque["id"].inspect}: #{e.message}"
+      end
 rescue StandardError => e
   warn "Could not read previous #{OUTPUT_PATH}: #{e.message}"
   {}
@@ -204,7 +211,6 @@ end
 
 def iqamah_times_from(html)
   jamaat = {}
-  jumuah_dhuhr_time = nil
 
   prayer_items_from(html).each do |item|
     title = title_from(item)
@@ -214,14 +220,8 @@ def iqamah_times_from(html)
       raise "#{title} is missing iqamah time." if times.length < 2
 
       jamaat[key] = times[1]
-    elsif jumuah_title?(title)
-      raise "#{title} is missing iqamah time." if times.empty?
-
-      jumuah_dhuhr_time ||= times[1] || times[0]
     end
   end
-
-  jamaat["dhuhr"] ||= jumuah_dhuhr_time
 
   missing = REQUIRED_PRAYER_KEYS - jamaat.keys
   raise "Missing iqamah values: #{missing.join(", ")}" unless missing.empty?
@@ -328,42 +328,153 @@ def london_mosque_jummah_times_from(html)
 end
 
 def validate_time!(value, label)
-  match = value.match(/\A\d{2}:\d{2}\z/)
-  raise "#{label} is not HH:mm: #{value.inspect}" unless match
+  raise "#{label} is not HH:mm: #{value.inspect}" unless value.is_a?(String) && value.match?(/\A\d{2}:\d{2}\z/)
 
   hour, minute = value.split(":").map(&:to_i)
   raise "#{label} hour is invalid: #{value.inspect}" unless hour.between?(0, 23)
   raise "#{label} minute is invalid: #{value.inspect}" unless minute.between?(0, 59)
 end
 
-def validate_record!(record)
-  %w[id name short_name address data_source source_url jamaat_times jummah_times last_verified].each do |key|
-    value = record.fetch(key)
-    raise "#{record["id"]} has blank #{key}." if value.respond_to?(:empty?) && value.empty?
+def minutes_since_midnight(value, label)
+  validate_time!(value, label)
+  hour, minute = value.split(":").map(&:to_i)
+  (hour * 60) + minute
+end
+
+def validate_daily_times!(times, label)
+  raise "#{label} must be an object." unless times.is_a?(Hash)
+
+  missing = REQUIRED_PRAYER_KEYS - times.keys
+  extras = times.keys - REQUIRED_PRAYER_KEYS
+  raise "#{label} is missing: #{missing.join(", ")}" unless missing.empty?
+  raise "#{label} has unexpected prayers: #{extras.join(", ")}" unless extras.empty?
+
+  minutes = REQUIRED_PRAYER_KEYS.map do |key|
+    minutes_since_midnight(times.fetch(key), "#{label}.#{key}")
   end
+  return if minutes.each_cons(2).all? { |earlier, later| earlier < later }
 
-  REQUIRED_PRAYER_KEYS.each do |key|
-    validate_time!(record.fetch("jamaat_times").fetch(key), "#{record["id"]}.#{key}")
+  raise "#{label} is not chronological (Fajr < Dhuhr < Asr < Maghrib < Isha)."
+end
+
+def validate_jummah_times!(times, label)
+  raise "#{label} must be a non-empty array." unless times.is_a?(Array) && !times.empty?
+
+  minutes = times.map.with_index do |time, index|
+    minutes_since_midnight(time, "#{label}[#{index}]")
   end
+  return if minutes.uniq.length == minutes.length &&
+            minutes.each_cons(2).all? { |earlier, later| earlier < later }
 
-  record.fetch("jummah_times").each do |time|
-    validate_time!(time, "#{record["id"]}.jummah")
-  end
+  raise "#{label} must contain distinct times in chronological order."
+end
 
-  return unless record["jamaat_schedule"]
-
-  schedule = record.fetch("jamaat_schedule")
-  raise "#{record["id"]}.jamaat_schedule must be an object." unless schedule.is_a?(Hash)
+def validate_schedule!(schedule, label)
+  raise "#{label} must be an object." unless schedule.is_a?(Hash)
 
   schedule.each do |date_key, times|
     Date.iso8601(date_key)
-    raise "#{record["id"]}.jamaat_schedule.#{date_key} must be an object." unless times.is_a?(Hash)
+    validate_daily_times!(times, "#{label}.#{date_key}")
+  rescue ArgumentError
+    raise "#{label} has invalid date key #{date_key.inspect}."
+  end
+end
 
-    REQUIRED_PRAYER_KEYS.each do |key|
-      validate_time!(times.fetch(key), "#{record["id"]}.jamaat_schedule.#{date_key}.#{key}")
+def validate_record!(record)
+  %w[id name short_name address data_source source_url jamaat_times jummah_times last_verified].each do |key|
+    value = record.fetch(key)
+    raise "#{record["id"]} has blank #{key}." if value.nil? || (value.respond_to?(:empty?) && value.empty?)
+  end
+
+  validate_daily_times!(record.fetch("jamaat_times"), "#{record["id"]}.jamaat_times")
+  validate_jummah_times!(record.fetch("jummah_times"), "#{record["id"]}.jummah_times")
+  Time.iso8601(record.fetch("last_verified"))
+
+  return unless record["jamaat_schedule"]
+
+  validate_schedule!(record.fetch("jamaat_schedule"), "#{record["id"]}.jamaat_schedule")
+end
+
+def validate_fallback_record!(record)
+  %w[id name short_name address data_source source_url jummah_times last_verified].each do |key|
+    value = record.fetch(key)
+    raise "#{record["id"]} has blank #{key}." if value.nil? || (value.respond_to?(:empty?) && value.empty?)
+  end
+  Time.iso8601(record.fetch("last_verified"))
+  validate_jummah_times!(record.fetch("jummah_times"), "#{record["id"]}.jummah_times")
+  if record["jamaat_times"]
+    validate_daily_times!(record.fetch("jamaat_times"), "#{record["id"]}.jamaat_times")
+  elsif record["stale_source"] != true
+    raise "#{record["id"]} has no daily schedule and is not marked as a stale source."
+  end
+  validate_schedule!(record.fetch("jamaat_schedule"), "#{record["id"]}.jamaat_schedule") if record["jamaat_schedule"]
+end
+
+def manual_overrides(path = MANUAL_OVERRIDES_PATH)
+  return [] unless File.exist?(path)
+
+  data = JSON.parse(File.read(path))
+  raise "#{path} must use version 1." unless data.fetch("version") == 1
+
+  overrides = data.fetch("overrides")
+  raise "#{path} overrides must be an array." unless overrides.is_a?(Array)
+
+  overrides.each { |override| validate_manual_override!(override) }
+  overrides
+end
+
+def validate_manual_override!(override)
+  %w[mosque_id starts_on ends_on reason verified_at].each do |key|
+    value = override.fetch(key)
+    raise "Manual override has blank #{key}." if value.nil? || (value.respond_to?(:empty?) && value.empty?)
+  end
+  raise "Unknown manual override mosque #{override["mosque_id"]}." unless MOSQUES.any? { |mosque| mosque[:id] == override["mosque_id"] }
+
+  starts_on = Date.iso8601(override.fetch("starts_on"))
+  ends_on = Date.iso8601(override.fetch("ends_on"))
+  raise "Manual override ends before it starts." if ends_on < starts_on
+
+  Time.iso8601(override.fetch("verified_at"))
+  has_daily = override.key?("jamaat_times")
+  has_jummah = override.key?("jummah_times")
+  raise "Manual override must provide jamaat_times or jummah_times." unless has_daily || has_jummah
+
+  validate_daily_times!(override.fetch("jamaat_times"), "manual_override.jamaat_times") if has_daily
+  validate_jummah_times!(override.fetch("jummah_times"), "manual_override.jummah_times") if has_jummah
+rescue ArgumentError => e
+  raise "Manual override has an invalid date or verified_at: #{e.message}"
+end
+
+def apply_manual_overrides(records, overrides, date:)
+  active = overrides.select do |override|
+    Date.iso8601(override.fetch("starts_on")) <= date &&
+      date <= Date.iso8601(override.fetch("ends_on"))
+  end
+  duplicates = active.group_by { |override| override.fetch("mosque_id") }.select { |_id, rows| rows.length > 1 }
+  raise "Multiple active manual overrides for: #{duplicates.keys.join(", ")}." unless duplicates.empty?
+
+  records.map do |record|
+    override = active.find { |candidate| candidate.fetch("mosque_id") == record.fetch("id") }
+    next record unless override
+
+    overridden = JSON.parse(JSON.generate(record))
+    if override.key?("jamaat_times")
+      overridden["jamaat_times"] = override.fetch("jamaat_times")
+      if overridden["jamaat_schedule"].is_a?(Hash)
+        overridden["jamaat_schedule"][date.iso8601] = override.fetch("jamaat_times")
+      end
     end
-  rescue Date::Error
-    raise "#{record["id"]}.jamaat_schedule has invalid date key #{date_key.inspect}."
+    overridden["jummah_times"] = override.fetch("jummah_times") if override.key?("jummah_times")
+    overridden["last_verified"] = override.fetch("verified_at")
+    overridden.delete("stale_source")
+    overridden["manual_override"] = {
+      "starts_on" => override.fetch("starts_on"),
+      "ends_on" => override.fetch("ends_on"),
+      "reason" => override.fetch("reason"),
+      "verified_at" => override.fetch("verified_at")
+    }
+    validate_record!(overridden)
+    overridden
   end
 end
 
@@ -420,7 +531,7 @@ rescue StandardError => e
   raise "Failed to build #{config.fetch(:id)} from #{source_url}: #{e.message}"
 end
 
-def generate_data(verified_at = Time.now.utc.iso8601, date: london_today)
+def generate_data(verified_at = Time.now.utc.iso8601, date: london_today, overrides: manual_overrides)
   previous = previous_records
   degraded = []
 
@@ -446,6 +557,8 @@ def generate_data(verified_at = Time.now.utc.iso8601, date: london_today)
     warn "Published with #{degraded.size} degraded mosque(s): #{degraded.join(", ")}"
   end
 
+  mosques = apply_manual_overrides(mosques, overrides, date: date)
+
   {
     "version" => 2,
     "last_updated" => verified_at,
@@ -453,9 +566,28 @@ def generate_data(verified_at = Time.now.utc.iso8601, date: london_today)
   }
 end
 
-def write_data(data)
-  File.write(OUTPUT_PATH, "#{JSON.pretty_generate(data)}\n")
-  puts "Wrote #{OUTPUT_PATH}"
+def validate_dataset!(data)
+  raise "bad version" unless data.fetch("version") == 2
+  Time.iso8601(data.fetch("last_updated"))
+  mosques = data.fetch("mosques")
+  raise "mosques must be an array" unless mosques.is_a?(Array)
+  expected_ids = MOSQUES.map { |mosque| mosque.fetch(:id) }.sort
+  actual_ids = mosques.map { |mosque| mosque.fetch("id") }.sort
+  raise "mosque set changed: #{actual_ids.inspect}" unless actual_ids == expected_ids
+
+  mosques.each { |record| validate_fallback_record!(record) }
+end
+
+def write_data(data, output_path: OUTPUT_PATH)
+  validate_dataset!(data)
+  output_directory = File.dirname(output_path)
+  Tempfile.create(["london-masjids", ".json"], output_directory) do |temporary|
+    temporary.write("#{JSON.pretty_generate(data)}\n")
+    temporary.flush
+    temporary.fsync
+    File.rename(temporary.path, output_path)
+  end
+  puts "Wrote #{output_path}"
   data.fetch("mosques").each do |mosque|
     # jamaat_times is nil for a mosque carried forward from the previous run
     # whose site was unreachable and which has no monthly schedule covering
