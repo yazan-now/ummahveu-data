@@ -9,11 +9,16 @@ This repository publishes:
 london-masjids.json
 ```
 
-Expected CDN URL:
+Canonical live feed URL:
 
 ```text
-https://cdn.jsdelivr.net/gh/yazan-now/ummahveu-data@main/london-masjids.json
+https://raw.githubusercontent.com/yazan-now/ummahveu-data/main/london-masjids.json
 ```
+
+The raw GitHub `main` route is the runtime and readiness authority. Mutable
+jsDelivr branch URLs are retired because an edge may continue serving an older
+catalog after `main` advances. Commit-pinned immutable CDN URLs may be used only
+to reproduce historical publication evidence, never as the live schedule.
 
 ## Source Policy
 
