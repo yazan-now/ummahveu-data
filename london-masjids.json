@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-08-26T07:24:34Z",
+  "last_updated": "2026-08-26T16:00:25Z",
   "mosques": [
     {
       "id": "lmm",
@@ -249,30 +249,22 @@
       }
     },
     {
-      "id": "mac_westmount",
-      "name": "MAC Westmount Centre",
-      "short_name": "MAC Westmount",
-      "address": "312 Commissioners Rd W Unit 5, London, ON N6J 1Y3",
-      "lat": 42.9554,
-      "lng": -81.2766,
+      "id": "mac_noor_gardens",
+      "name": "MAC Noor Gardens",
+      "short_name": "MAC Noor Gardens",
+      "address": "457 Southdale Rd W, London, ON N6P 1M7",
+      "lat": 42.937182552938935,
+      "lng": -81.285658954204123,
       "phone": "+1-519-936-2304",
       "logo_url": null,
       "data_source": "official_website",
-      "source_url": "https://centres.macnet.ca/westmount/",
-      "source_id": null,
-      "jamaat_times": {
-        "fajr": "05:49",
-        "dhuhr": "14:00",
-        "asr": "17:45",
-        "maghrib": "20:18",
-        "isha": "21:43"
-      },
-      "jummah_times": [
-        "12:15",
-        "13:30"
-      ],
+      "source_url": "https://centres.macnet.ca/macnoorgardens/",
+      "source_id": "macnoorgardens",
+      "jamaat_times": null,
+      "jummah_times": [],
+      "jummah_status": "unavailable",
       "khateeb": null,
-      "last_verified": "2026-08-26T07:24:34Z"
+      "last_verified": "2026-08-26T16:00:25Z"
     },
     {
       "id": "mac_hyde_park",

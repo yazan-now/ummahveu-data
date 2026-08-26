@@ -25,14 +25,18 @@ https://cdn.jsdelivr.net/gh/yazan-now/ummahveu-data@main/london-masjids.json
   `https://www.londonmosque.ca/friday-prayers`.
 - The LMM record includes a `jamaat_schedule` map for the whole official month,
   while `jamaat_times` remains the current-day row for older app builds.
-- MAC Westmount uses the official MAC Westmount page at
-  `https://centres.macnet.ca/westmount/`.
+- MAC Noor Gardens uses its official centre page at
+  `https://centres.macnet.ca/macnoorgardens/` to verify identity and address.
+- MAC Noor Gardens remains metadata-only with daily iqamah and Jummah
+  unavailable. The feed never derives current times from an old timetable.
 - MAC Hyde Park and Muslim Wellness use their public Masjidbox pages.
 - If a source page cannot be fetched or parsed, the updater fails instead of
   publishing guessed times.
-- Every candidate must contain all five regular daily prayers in chronological
-  order, plus a separate chronological Jummah list. Eid, Taraweeh, and other
-  special cards are not treated as regular daily prayers.
+- Every timed candidate must contain all five regular daily prayers in
+  chronological order, plus a separate chronological Jummah list. The explicit
+  MAC Noor Gardens metadata-only record instead carries `jummah_status` as
+  `unavailable`, `jamaat_times` as `null`, and an empty Jummah list. Eid,
+  Taraweeh, and other special cards are not treated as regular daily prayers.
 - Each source fetch is attempted three times. If one source remains unavailable,
   its last verified record is carried forward; if every source fails, the
   published file is left untouched.
@@ -40,7 +44,7 @@ https://cdn.jsdelivr.net/gh/yazan-now/ummahveu-data@main/london-masjids.json
 ## Mosques In This Feed
 
 - London Muslim Mosque
-- MAC Westmount Centre
+- MAC Noor Gardens
 - MAC Hyde Park Masjid
 - Muslim Wellness Network
 

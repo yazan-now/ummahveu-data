@@ -138,6 +138,55 @@ class UpdateLondonMasjidsTest < Minitest::Test
     assert_match(/not chronological/, error.message)
   end
 
+  def test_noor_gardens_official_page_verifier_is_fail_closed
+    verified_html = <<~HTML
+      <h1>MAC Noor Gardens</h1>
+      <footer>457 Southdale Rd W, London, ON N6P 1M7</footer>
+    HTML
+    verify_noor_gardens_metadata!(verified_html)
+
+    error = assert_raises(RuntimeError) do
+      verify_noor_gardens_metadata!("<h1>MAC Noor Gardens</h1><footer>London, Ontario</footer>")
+    end
+    assert_match(/457 Southdale Rd W/, error.message)
+    assert_match(/N6P 1M7/, error.message)
+  end
+
+  def test_noor_gardens_build_ignores_old_timetable_and_suppresses_countdowns
+    config = noor_gardens_config
+    old_timetable_html = <<~HTML
+      <h1>MAC Noor Gardens</h1>
+      <footer>457 Southdale Rd W, London, ON N6P 1M7</footer>
+      <table data-month="2020-08"><tr><td>Jummah 1:30 PM</td></tr></table>
+    HTML
+
+    record = stub(:fetch_html, old_timetable_html) do
+      build_record(config, "2026-08-26T16:00:25Z", date: Date.new(2026, 8, 26))
+    end
+
+    assert_equal(NOOR_GARDENS_ID, record.fetch("id"))
+    assert_equal(NOOR_GARDENS_SOURCE_ID, record.fetch("source_id"))
+    assert_nil(record.fetch("jamaat_times"))
+    assert_empty(record.fetch("jummah_times"))
+    assert_equal("unavailable", record.fetch("jummah_status"))
+    assert_equal("2026-08-26T16:00:25Z", record.fetch("last_verified"))
+    refute(record.key?("jamaat_schedule"))
+    validate_record!(record)
+  end
+
+  def test_noor_gardens_validation_rejects_any_published_schedule
+    daily = Marshal.load(Marshal.dump(noor_gardens_record))
+    daily["jamaat_times"] = valid_record.fetch("jamaat_times")
+    jummah = Marshal.load(Marshal.dump(noor_gardens_record))
+    jummah["jummah_times"] = ["13:30"]
+    status = Marshal.load(Marshal.dump(noor_gardens_record))
+    status["jummah_status"] = "available"
+
+    assert_raises(RuntimeError) { validate_record!(daily) }
+    assert_raises(RuntimeError) { validate_record!(jummah) }
+    assert_raises(RuntimeError) { validate_record!(status) }
+  end
+
   def test_record_validation_requires_distinct_ordered_jummah_list
     missing = valid_record
     missing["jummah_times"] = []
@@ -172,6 +221,22 @@ class UpdateLondonMasjidsTest < Minitest::Test
     assert_nil(fallback["jamaat_times"])
     assert_equal(true, fallback.fetch("stale_source"))
     assert_equal(prior.fetch("jummah_times"), fallback.fetch("jummah_times"))
+    assert_equal(prior.fetch("last_verified"), fallback.fetch("last_verified"))
+    validate_fallback_record!(fallback)
+  end
+
+  def test_noor_gardens_last_known_good_remains_unavailable_when_source_fails
+    prior = noor_gardens_record
+    fallback = stale_fallback(
+      noor_gardens_config,
+      { NOOR_GARDENS_ID => prior },
+      date: Date.new(2026, 8, 27)
+    )
+
+    assert_nil(fallback.fetch("jamaat_times"))
+    assert_empty(fallback.fetch("jummah_times"))
+    assert_equal("unavailable", fallback.fetch("jummah_status"))
+    assert_equal(true, fallback.fetch("stale_source"))
     assert_equal(prior.fetch("last_verified"), fallback.fetch("last_verified"))
     validate_fallback_record!(fallback)
   end
@@ -220,19 +285,25 @@ class UpdateLondonMasjidsTest < Minitest::Test
     assert_match(/ends before/, error.message)
   end
 
+  def test_manual_override_cannot_invent_noor_gardens_schedule
+    override = {
+      "mosque_id" => NOOR_GARDENS_ID,
+      "starts_on" => "2026-08-26",
+      "ends_on" => "2026-08-26",
+      "reason" => "Unverified schedule",
+      "verified_at" => "2026-08-26T16:00:25Z",
+      "jummah_times" => ["13:30"]
+    }
+
+    error = assert_raises(RuntimeError) { validate_manual_override!(override) }
+    assert_match(/remains unavailable/, error.message)
+  end
+
   def test_write_data_is_atomic_and_refuses_invalid_dataset()
     data = {
       "version" => 2,
       "last_updated" => "2026-07-30T14:00:00Z",
-      "mosques" => MOSQUES.map do |mosque|
-        valid_record.merge(
-          "id" => mosque.fetch(:id),
-          "name" => mosque.fetch(:name),
-          "short_name" => mosque.fetch(:short_name),
-          "address" => mosque.fetch(:address),
-          "source_url" => mosque.fetch(:source_url)
-        )
-      end
+      "mosques" => MOSQUES.map { |mosque| record_for_config(mosque) }
     }
 
     Dir.mktmpdir do |directory|
@@ -248,6 +319,45 @@ class UpdateLondonMasjidsTest < Minitest::Test
   end
 
   private
+
+  def noor_gardens_config
+    MOSQUES.find { |mosque| mosque.fetch(:id) == NOOR_GARDENS_ID }
+  end
+
+  def noor_gardens_record
+    config = noor_gardens_config
+    {
+      "id" => config.fetch(:id),
+      "name" => config.fetch(:name),
+      "short_name" => config.fetch(:short_name),
+      "address" => config.fetch(:address),
+      "lat" => config.fetch(:lat),
+      "lng" => config.fetch(:lng),
+      "phone" => config.fetch(:phone),
+      "logo_url" => nil,
+      "data_source" => "official_website",
+      "source_url" => config.fetch(:source_url),
+      "source_id" => config.fetch(:source_id),
+      "jamaat_times" => nil,
+      "jummah_times" => [],
+      "jummah_status" => "unavailable",
+      "khateeb" => nil,
+      "last_verified" => "2026-08-26T16:00:25Z"
+    }
+  end
+
+  def record_for_config(config)
+    return noor_gardens_record if config.fetch(:id) == NOOR_GARDENS_ID
+
+    valid_record.merge(
+      "id" => config.fetch(:id),
+      "name" => config.fetch(:name),
+      "short_name" => config.fetch(:short_name),
+      "address" => config.fetch(:address),
+      "source_url" => config.fetch(:source_url),
+      "data_source" => config.fetch(:source_type) == "masjidbox" ? "masjidbox" : "official_website"
+    )
+  end
 
   def valid_record
     {
