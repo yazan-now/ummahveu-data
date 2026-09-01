@@ -152,35 +152,109 @@ class UpdateLondonMasjidsTest < Minitest::Test
     assert_match(/N6P 1M7/, error.message)
   end
 
-  def test_noor_gardens_build_ignores_old_timetable_and_suppresses_countdowns
-    config = noor_gardens_config
-    old_timetable_html = <<~HTML
-      <h1>MAC Noor Gardens</h1>
-      <footer>457 Southdale Rd W, London, ON N6P 1M7</footer>
-      <table data-month="2020-08"><tr><td>Jummah 1:30 PM</td></tr></table>
-    HTML
+  def test_noor_gardens_homepage_parses_current_date_daily_rows_and_jummah
+    schedule = noor_gardens_schedule_from(
+      noor_gardens_homepage_fixture,
+      Date.new(2026, 8, 31)
+    )
 
-    record = stub(:fetch_html, old_timetable_html) do
-      build_record(config, "2026-08-26T16:00:25Z", date: Date.new(2026, 8, 26))
+    assert_equal("2026-08-31", schedule.fetch("date"))
+    assert_equal(
+      {
+        "fajr" => "05:25",
+        "dhuhr" => "13:27",
+        "asr" => "17:10",
+        "maghrib" => "20:05",
+        "isha" => "21:27"
+      },
+      schedule.fetch("athan_times")
+    )
+    assert_equal(
+      {
+        "fajr" => "05:56",
+        "dhuhr" => "14:00",
+        "asr" => "17:30",
+        "maghrib" => "20:10",
+        "isha" => "21:42"
+      },
+      schedule.fetch("jamaat_times")
+    )
+    assert_equal(["12:00", "13:30"], schedule.fetch("jummah_times"))
+  end
+
+  def test_noor_gardens_homepage_rejects_stale_or_mismatched_date
+    error = assert_raises(RuntimeError) do
+      noor_gardens_schedule_from(
+        noor_gardens_homepage_fixture(date_text: "August 31, 2020"),
+        Date.new(2026, 8, 31)
+      )
+    end
+
+    assert_match(/displayed date 2020-08-31 does not match 2026-08-31/, error.message)
+  end
+
+  def test_noor_gardens_homepage_rejects_missing_or_partial_daily_rows
+    missing = noor_gardens_homepage_fixture(prayers: REQUIRED_PRAYER_KEYS - ["isha"])
+    partial = noor_gardens_homepage_fixture.sub(
+      '<div class="prayer-jamaat">9:42 pm</div>',
+      ""
+    )
+
+    missing_error = assert_raises(RuntimeError) do
+      noor_gardens_schedule_from(missing, Date.new(2026, 8, 31))
+    end
+    partial_error = assert_raises(RuntimeError) do
+      noor_gardens_schedule_from(partial, Date.new(2026, 8, 31))
+    end
+
+    assert_match(/exactly one isha row/, missing_error.message)
+    assert_match(/isha row must contain one Athan and one Jamaat time/, partial_error.message)
+  end
+
+  def test_noor_gardens_homepage_rejects_malformed_times
+    malformed = noor_gardens_homepage_fixture.sub("8:10 pm", "8:99 pm")
+
+    error = assert_raises(RuntimeError) do
+      noor_gardens_schedule_from(malformed, Date.new(2026, 8, 31))
+    end
+
+    assert_match(/minute is invalid/, error.message)
+  end
+
+  def test_noor_gardens_homepage_requires_both_jummah_times
+    partial = noor_gardens_homepage_fixture(jummah_times: ["12:00 PM"])
+
+    error = assert_raises(RuntimeError) do
+      noor_gardens_schedule_from(partial, Date.new(2026, 8, 31))
+    end
+
+    assert_match(/exactly one two-prayer Jummah block/, error.message)
+  end
+
+  def test_noor_gardens_build_publishes_current_homepage_schedule
+    config = noor_gardens_config
+
+    record = stub(:fetch_html, noor_gardens_homepage_fixture) do
+      build_record(config, "2026-08-31T20:22:00Z", date: Date.new(2026, 8, 31))
     end
 
     assert_equal(NOOR_GARDENS_ID, record.fetch("id"))
     assert_equal(NOOR_GARDENS_SOURCE_ID, record.fetch("source_id"))
-    assert_nil(record.fetch("jamaat_times"))
-    assert_empty(record.fetch("jummah_times"))
-    assert_equal("unavailable", record.fetch("jummah_status"))
-    assert_equal("2026-08-26T16:00:25Z", record.fetch("last_verified"))
+    assert_equal(noor_gardens_record.fetch("jamaat_times"), record.fetch("jamaat_times"))
+    assert_equal(["12:00", "13:30"], record.fetch("jummah_times"))
+    refute(record.key?("jummah_status"))
+    assert_equal("2026-08-31T20:22:00Z", record.fetch("last_verified"))
     refute(record.key?("jamaat_schedule"))
     validate_record!(record)
   end
 
-  def test_noor_gardens_validation_rejects_any_published_schedule
+  def test_noor_gardens_validation_rejects_incomplete_or_unavailable_current_record
     daily = Marshal.load(Marshal.dump(noor_gardens_record))
-    daily["jamaat_times"] = valid_record.fetch("jamaat_times")
+    daily["jamaat_times"].delete("isha")
     jummah = Marshal.load(Marshal.dump(noor_gardens_record))
-    jummah["jummah_times"] = ["13:30"]
+    jummah["jummah_times"] = ["12:00"]
     status = Marshal.load(Marshal.dump(noor_gardens_record))
-    status["jummah_status"] = "available"
+    status["jummah_status"] = "unavailable"
 
     assert_raises(RuntimeError) { validate_record!(daily) }
     assert_raises(RuntimeError) { validate_record!(jummah) }
@@ -296,7 +370,7 @@ class UpdateLondonMasjidsTest < Minitest::Test
     }
 
     error = assert_raises(RuntimeError) { validate_manual_override!(override) }
-    assert_match(/remains unavailable/, error.message)
+    assert_match(/uses only its official homepage/, error.message)
   end
 
   def test_write_data_is_atomic_and_refuses_invalid_dataset()
@@ -338,11 +412,16 @@ class UpdateLondonMasjidsTest < Minitest::Test
       "data_source" => "official_website",
       "source_url" => config.fetch(:source_url),
       "source_id" => config.fetch(:source_id),
-      "jamaat_times" => nil,
-      "jummah_times" => [],
-      "jummah_status" => "unavailable",
+      "jamaat_times" => {
+        "fajr" => "05:56",
+        "dhuhr" => "14:00",
+        "asr" => "17:30",
+        "maghrib" => "20:10",
+        "isha" => "21:42"
+      },
+      "jummah_times" => ["12:00", "13:30"],
       "khateeb" => nil,
-      "last_verified" => "2026-08-26T16:00:25Z"
+      "last_verified" => "2026-08-31T20:22:00Z"
     }
   end
 
@@ -392,6 +471,58 @@ class UpdateLondonMasjidsTest < Minitest::Test
         <div class="time">#{athan}<sup class="ampm">#{period}</sup></div>
         <div class="time">#{iqamah}<sup class="ampm">#{period}</sup></div>
       </div>
+    HTML
+  end
+
+  def noor_gardens_homepage_fixture(
+    date_text: "August 31, 2026",
+    prayers: REQUIRED_PRAYER_KEYS,
+    jummah_times: ["12:00 PM", "1:30 PM"]
+  )
+    athan = {
+      "fajr" => "5:25 am",
+      "dhuhr" => "1:27 pm",
+      "asr" => "5:10 pm",
+      "maghrib" => "8:05 pm",
+      "isha" => "9:27 pm"
+    }
+    jamaat = {
+      "fajr" => "5:56 am",
+      "dhuhr" => "2:00 pm",
+      "asr" => "5:30 pm",
+      "maghrib" => "8:10 pm",
+      "isha" => "9:42 pm"
+    }
+    cards = prayers.map do |key|
+      <<~HTML
+        <div class="prayer-time prayer-#{key} ">
+          <h3>#{key}</h3>
+          <div class="prayer-start">#{athan.fetch(key)}</div>
+          <div class="prayer-jamaat">#{jamaat.fetch(key)}</div>
+        </div> <!-- END of prayer time-->
+      HTML
+    end.join
+    jummah = if jummah_times.length == 2
+                <<~HTML
+                  <h2 class="elementor-heading-title elementor-size-default">
+                    Prayer 1: #{jummah_times[0]} <br>Prayer 2: #{jummah_times[1]}
+                  </h2>
+                HTML
+              else
+                "<h2>Prayer 1: #{jummah_times.first}</h2>"
+              end
+
+    <<~HTML
+      <title>MAC Noor Gardens</title>
+      <div class="dpt-horizontal-wrapper customStyles">
+        <div class="dpt-heading"><h3 class="date side-by-side">#{date_text}</h3></div>
+        <div class="dpt-wrapper-container">
+          #{cards}
+        </div> <!-- END of wrapper container-->
+      </div>
+      <h2>Jummah</h2>
+      #{jummah}
+      <footer>457 Southdale Rd W, London, ON N6P 1M7</footer>
     HTML
   end
 

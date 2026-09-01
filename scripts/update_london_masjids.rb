@@ -49,7 +49,7 @@ MOSQUES = [
     phone: "+1-519-936-2304",
     source_url: "https://centres.macnet.ca/macnoorgardens/",
     source_id: NOOR_GARDENS_SOURCE_ID,
-    source_type: "noor_official_metadata"
+    source_type: "noor_official"
   },
   {
     id: "mac_hyde_park",
@@ -264,6 +264,76 @@ def verify_noor_gardens_metadata!(html)
   raise "MAC Noor Gardens official page is missing verified metadata: #{missing.join(", ")}"
 end
 
+def noor_gardens_schedule_from(html, date)
+  verify_noor_gardens_metadata!(html)
+
+  wrapper = html[
+    /<div class="dpt-horizontal-wrapper\b[^"]*"[^>]*>(.*?)<\/div>\s*<!-- END of wrapper container-->/m,
+    1
+  ]
+  raise "MAC Noor Gardens official page is missing the daily prayer schedule." unless wrapper
+
+  date_fragments = wrapper.scan(/<h3 class="date\b[^"]*"[^>]*>(.*?)<\/h3>/m).flatten
+  raise "MAC Noor Gardens schedule must display exactly one date." unless date_fragments.length == 1
+
+  date_text = text_from_html(date_fragments.first)
+  unless date_text.match?(/\A(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}\z/)
+    raise "MAC Noor Gardens schedule date is malformed: #{date_text.inspect}"
+  end
+
+  displayed_date = Date.strptime(date_text, "%B %d, %Y")
+  unless displayed_date == date
+    raise "MAC Noor Gardens displayed date #{displayed_date.iso8601} does not match #{date.iso8601}."
+  end
+
+  athan_times = {}
+  jamaat_times = {}
+  REQUIRED_PRAYER_KEYS.each do |key|
+    cards = wrapper.scan(
+      /<div class="prayer-time prayer-#{Regexp.escape(key)}\b[^"]*"[^>]*>(.*?)<\/div>\s*<!-- END of prayer time-->/m
+    ).flatten
+    raise "MAC Noor Gardens must display exactly one #{key} row." unless cards.length == 1
+
+    card = cards.first
+    starts = card.scan(/<div\s+class="prayer-start"[^>]*>(.*?)<\/div>/m).flatten
+    jamaats = card.scan(/<div\s+class="prayer-jamaat"[^>]*>(.*?)<\/div>/m).flatten
+    unless starts.length == 1 && jamaats.length == 1
+      raise "MAC Noor Gardens #{key} row must contain one Athan and one Jamaat time."
+    end
+
+    athan_times[key] = time_text_to_24h(text_from_html(starts.first))
+    jamaat_times[key] = time_text_to_24h(text_from_html(jamaats.first))
+  end
+
+  athan_times = ordered_prayer_times(athan_times)
+  jamaat_times = ordered_prayer_times(jamaat_times)
+  validate_daily_times!(athan_times, "#{NOOR_GARDENS_ID}.athan_times")
+  validate_daily_times!(jamaat_times, "#{NOOR_GARDENS_ID}.jamaat_times")
+  REQUIRED_PRAYER_KEYS.each do |key|
+    next if minutes_since_midnight(athan_times.fetch(key), "#{NOOR_GARDENS_ID}.athan_times.#{key}") <=
+            minutes_since_midnight(jamaat_times.fetch(key), "#{NOOR_GARDENS_ID}.jamaat_times.#{key}")
+
+    raise "MAC Noor Gardens #{key} Jamaat time precedes its Athan time."
+  end
+
+  jummah_rows = html.scan(
+    /<h2\b[^>]*>\s*Prayer\s*1:\s*(\d{1,2}:\d{2}\s*(?:AM|PM))\s*<br\s*\/?>(?:\s|&nbsp;)*Prayer\s*2:\s*(\d{1,2}:\d{2}\s*(?:AM|PM))\s*<\/h2>/im
+  )
+  raise "MAC Noor Gardens must display exactly one two-prayer Jummah block." unless jummah_rows.length == 1
+
+  jummah_times = jummah_rows.first.map { |time| time_text_to_24h(time) }
+  validate_jummah_times!(jummah_times, "#{NOOR_GARDENS_ID}.jummah_times")
+
+  {
+    "date" => displayed_date.iso8601,
+    "athan_times" => athan_times,
+    "jamaat_times" => jamaat_times,
+    "jummah_times" => jummah_times
+  }
+rescue ArgumentError => e
+  raise "MAC Noor Gardens schedule date is invalid: #{e.message}"
+end
+
 def london_mosque_official_iqamah_times_from(html, date)
   schedule = london_mosque_official_monthly_schedule_from(html, date)
   schedule.fetch(date.iso8601) do
@@ -431,9 +501,6 @@ def validate_noor_gardens_record!(record)
     "data_source" => "official_website",
     "source_url" => config.fetch(:source_url),
     "source_id" => config.fetch(:source_id),
-    "jamaat_times" => nil,
-    "jummah_times" => [],
-    "jummah_status" => "unavailable",
     "khateeb" => nil
   }
   expected.each do |key, value|
@@ -441,8 +508,16 @@ def validate_noor_gardens_record!(record)
   end
   raise "#{NOOR_GARDENS_ID} must not publish a daily schedule." if record["jamaat_schedule"] || record["schedule_month"]
   raise "#{NOOR_GARDENS_ID} must not accept a manual schedule override." if record["manual_override"]
-  if record.key?("stale_source") && record["stale_source"] != true
-    raise "#{NOOR_GARDENS_ID} stale_source must be true when present."
+  if record["stale_source"] == true
+    raise "#{NOOR_GARDENS_ID} stale fallback must not publish daily times." unless record["jamaat_times"].nil?
+    raise "#{NOOR_GARDENS_ID} stale fallback must not publish Jummah times." unless record["jummah_times"] == []
+    raise "#{NOOR_GARDENS_ID} stale fallback must be unavailable." unless record["jummah_status"] == "unavailable"
+  else
+    raise "#{NOOR_GARDENS_ID} stale_source must be true when present." if record.key?("stale_source")
+    validate_daily_times!(record.fetch("jamaat_times"), "#{NOOR_GARDENS_ID}.jamaat_times")
+    validate_jummah_times!(record.fetch("jummah_times"), "#{NOOR_GARDENS_ID}.jummah_times")
+    raise "#{NOOR_GARDENS_ID} must publish exactly two Jummah times." unless record.fetch("jummah_times").length == 2
+    raise "#{NOOR_GARDENS_ID} must not be unavailable after a valid refresh." if record.key?("jummah_status")
   end
   Time.iso8601(record.fetch("last_verified"))
 end
@@ -467,7 +542,7 @@ def validate_manual_override!(override)
   end
   raise "Unknown manual override mosque #{override["mosque_id"]}." unless MOSQUES.any? { |mosque| mosque[:id] == override["mosque_id"] }
   if override["mosque_id"] == NOOR_GARDENS_ID
-    raise "MAC Noor Gardens remains unavailable and cannot accept a schedule override."
+    raise "MAC Noor Gardens uses only its official homepage and cannot accept a schedule override."
   end
 
   starts_on = Date.iso8601(override.fetch("starts_on"))
@@ -523,14 +598,15 @@ def build_record(config, verified_at, date: london_today)
   source_url = source_type == "lmm_official" ? london_mosque_monthly_url(date) : config.fetch(:source_url)
   html = fetch_html(source_url)
   jamaat_schedule = nil
+  noor_schedule = nil
   jamaat_times =
     case source_type
     when "lmm_official"
       jamaat_schedule = london_mosque_official_monthly_schedule_from(html, date)
       jamaat_schedule.fetch(date.iso8601)
-    when "noor_official_metadata"
-      verify_noor_gardens_metadata!(html)
-      nil
+    when "noor_official"
+      noor_schedule = noor_gardens_schedule_from(html, date)
+      noor_schedule.fetch("jamaat_times")
     else
       iqamah_times_from(html)
     end
@@ -538,8 +614,8 @@ def build_record(config, verified_at, date: london_today)
     case source_type
     when "lmm_official"
       london_mosque_jummah_times_from(fetch_html(config.fetch(:jummah_source_url)))
-    when "noor_official_metadata"
-      []
+    when "noor_official"
+      noor_schedule.fetch("jummah_times")
     else
       jummah_times_from(html)
     end
@@ -564,9 +640,7 @@ def build_record(config, verified_at, date: london_today)
     record["schedule_month"] = date.strftime("%Y-%m")
     record["jamaat_schedule"] = jamaat_schedule
   end
-  if source_type == "noor_official_metadata"
-    record["jummah_status"] = "unavailable"
-  elsif record["jummah_times"].empty?
+  if record["jummah_times"].empty?
     raise "#{record["id"]} has no Jummah iqamah times."
   end
 
@@ -639,18 +713,13 @@ def write_data(data, output_path: OUTPUT_PATH)
     # today - see stale_fallback. Printing it must not crash the run, or the
     # job still exits non-zero after successfully publishing.
     jamaat = mosque["jamaat_times"]
-    times = if mosque.fetch("id") == NOOR_GARDENS_ID
-              "unavailable (Coming Soon)"
-            elsif jamaat
+    times = if jamaat
               jamaat.map { |key, value| "#{key}=#{value}" }.join(", ")
             else
               "unavailable (source down)"
             end
-    jummah = if mosque.fetch("id") == NOOR_GARDENS_ID
-               "unavailable"
-             else
-               Array(mosque["jummah_times"]).join(", ")
-             end
+    jummah_values = Array(mosque["jummah_times"])
+    jummah = jummah_values.empty? ? "unavailable" : jummah_values.join(", ")
     puts "#{mosque.fetch("short_name")}: #{times}; Jummah #{jummah}"
   end
 end
