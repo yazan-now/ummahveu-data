@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-09-25T12:03:21Z",
+  "last_updated": "2026-09-26T11:39:27Z",
   "mosques": [
     {
       "id": "lmm",
@@ -18,7 +18,7 @@
         "fajr": "06:15",
         "dhuhr": "13:50",
         "asr": "17:00",
-        "maghrib": "19:24",
+        "maghrib": "19:23",
         "isha": "21:00"
       },
       "jummah_times": [
@@ -26,7 +26,7 @@
         "13:15"
       ],
       "khateeb": null,
-      "last_verified": "2026-09-25T12:03:21Z",
+      "last_verified": "2026-09-26T11:39:27Z",
       "schedule_month": "2026-09",
       "jamaat_schedule": {
         "2026-09-01": {
@@ -254,18 +254,18 @@
       "source_url": "https://centres.macnet.ca/macnoorgardens/",
       "source_id": "macnoorgardens",
       "jamaat_times": {
-        "fajr": "06:27",
+        "fajr": "06:28",
         "dhuhr": "14:00",
         "asr": "17:30",
-        "maghrib": "19:25",
-        "isha": "20:53"
+        "maghrib": "19:24",
+        "isha": "20:51"
       },
       "jummah_times": [
         "12:00",
         "13:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-09-25T12:03:21Z"
+      "last_verified": "2026-09-26T11:39:27Z"
     },
     {
       "id": "mac_hyde_park",
@@ -279,13 +279,18 @@
       "data_source": "masjidbox",
       "source_url": "https://masjidbox.com/prayer-times/mac-london",
       "source_id": null,
-      "jamaat_times": null,
+      "jamaat_times": {
+        "fajr": "06:29",
+        "dhuhr": "14:00",
+        "asr": "17:30",
+        "maghrib": "19:24",
+        "isha": "20:45"
+      },
       "jummah_times": [
         "12:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-09-24T12:03:14Z",
-      "stale_source": true
+      "last_verified": "2026-09-26T11:39:27Z"
     },
     {
       "id": "muslim_wellness",
@@ -299,13 +304,18 @@
       "data_source": "masjidbox",
       "source_url": "https://masjidbox.com/prayer-times/muslim-wellness",
       "source_id": null,
-      "jamaat_times": null,
+      "jamaat_times": {
+        "fajr": "06:30",
+        "dhuhr": "13:45",
+        "asr": "17:00",
+        "maghrib": "19:23",
+        "isha": "20:33"
+      },
       "jummah_times": [
         "15:30"
       ],
       "khateeb": null,
-      "last_verified": "2026-09-24T12:03:14Z",
-      "stale_source": true
+      "last_verified": "2026-09-26T11:39:27Z"
     }
   ]
 }
