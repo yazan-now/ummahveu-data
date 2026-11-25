@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-11-24T18:05:04Z",
+  "last_updated": "2026-11-25T17:29:15Z",
   "mosques": [
     {
       "id": "lmm",
@@ -18,7 +18,7 @@
         "fajr": "06:30",
         "dhuhr": "13:10",
         "asr": "15:15",
-        "maghrib": "17:03",
+        "maghrib": "17:02",
         "isha": "19:45"
       },
       "jummah_times": [
@@ -26,7 +26,7 @@
         "13:15"
       ],
       "khateeb": null,
-      "last_verified": "2026-11-24T18:05:04Z",
+      "last_verified": "2026-11-25T17:29:15Z",
       "schedule_month": "2026-11",
       "jamaat_schedule": {
         "2026-11-01": {
